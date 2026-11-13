@@ -10,7 +10,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.itismob.s02.mco2.group7.budgetbuddy.models.Income;
-import com.itismob.s02.mco2.group7.budgetbuddy.utils.FirestoreHelper;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Fmt;
 
 public class IncomeDetailActivity extends AppCompatActivity {
@@ -35,25 +34,13 @@ public class IncomeDetailActivity extends AppCompatActivity {
         deleteBtn = findViewById(R.id.deleteBtn);
 
         current = (Income) getIntent().getSerializableExtra(INCOME_KEY);
+
         if (current == null) {
             finish();
             return;
         }
-        show(current);
 
-        FirestoreHelper.col(FirestoreHelper.INCOMES).document(current.getId())
-                .addSnapshotListener(this, (snap, e) -> {
-                    if (snap == null) return;
-                    if (snap.exists()) {
-                        Income updated = snap.toObject(Income.class);
-                        if (updated != null) {
-                            current = updated;
-                            show(current);
-                        }
-                    } else {
-                        finish();
-                    }
-                });
+        show(current);
 
         backTv.setOnClickListener(v -> finish());
 
@@ -70,6 +57,7 @@ public class IncomeDetailActivity extends AppCompatActivity {
         amountTv.setText(Fmt.peso(income.getAmount()));
         dateTv.setText(Fmt.date(income.getDate()));
         sourceTv.setText(income.getSource());
+
         String notes = income.getNotes();
         notesTv.setText(notes == null || notes.isEmpty() ? "No notes" : notes);
     }
@@ -80,8 +68,6 @@ public class IncomeDetailActivity extends AppCompatActivity {
                 .setMessage("This will permanently remove this income record.")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Delete", (d, w) -> {
-                    FirestoreHelper.col(FirestoreHelper.INCOMES)
-                            .document(current.getId()).delete();
                     Toast.makeText(this, "Income deleted", Toast.LENGTH_SHORT).show();
                     finish();
                 })

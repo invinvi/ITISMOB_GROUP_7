@@ -1,3 +1,4 @@
+
 package com.itismob.s02.mco2.group7.budgetbuddy;
 
 import android.content.Intent;
@@ -6,22 +7,10 @@ import android.text.TextUtils;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.gms.auth.api.signin.GoogleSignIn;
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
-import com.google.android.gms.auth.api.signin.GoogleSignInClient;
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
-import com.google.android.gms.common.api.ApiException;
-import com.google.android.gms.tasks.Task;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.auth.GoogleAuthProvider;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -29,28 +18,10 @@ public class LoginActivity extends AppCompatActivity {
     private MaterialButton loginBtn, googleBtn;
     private TextView signUpTv;
 
-    private FirebaseAuth auth;
-    private GoogleSignInClient googleClient;
-
-    private final ActivityResultLauncher<Intent> googleLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                Task<GoogleSignInAccount> task =
-                        GoogleSignIn.getSignedInAccountFromIntent(result.getData());
-                try {
-                    GoogleSignInAccount account = task.getResult(ApiException.class);
-                    firebaseAuthWithGoogle(account.getIdToken());
-                } catch (ApiException e) {
-                    Toast.makeText(this, "Google sign-in failed (code "
-                            + e.getStatusCode() + ")", Toast.LENGTH_LONG).show();
-                }
-            });
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
-        auth = FirebaseAuth.getInstance();
 
         emailEt = findViewById(R.id.emailEt);
         passwordEt = findViewById(R.id.passwordEt);
@@ -60,23 +31,20 @@ public class LoginActivity extends AppCompatActivity {
 
         emailEt.setText(PrefsHelper.getEmail(this));
 
-        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id))
-                .requestEmail()
-                .build();
-        googleClient = GoogleSignIn.getClient(this, gso);
-
-        loginBtn.setOnClickListener(v -> loginWithEmail());
+        loginBtn.setOnClickListener(v -> login());
 
         googleBtn.setOnClickListener(v ->
-                googleClient.signOut().addOnCompleteListener(t ->
-                        googleLauncher.launch(googleClient.getSignInIntent())));
+                Toast.makeText(this,
+                        "Google Sign-In is unavailable in UI-only mode",
+                        Toast.LENGTH_SHORT).show()
+        );
 
         signUpTv.setOnClickListener(v ->
-                startActivity(new Intent(this, RegisterActivity.class)));
+                startActivity(new Intent(this, RegisterActivity.class))
+        );
     }
 
-    private void loginWithEmail() {
+    private void login() {
         String email = emailEt.getText().toString().trim();
         String password = passwordEt.getText().toString();
 
@@ -84,41 +52,16 @@ public class LoginActivity extends AppCompatActivity {
             emailEt.setError("Enter your email");
             return;
         }
+
         if (TextUtils.isEmpty(password)) {
             passwordEt.setError("Enter your password");
             return;
         }
 
-        loginBtn.setEnabled(false);
-        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener(this, task -> {
-            loginBtn.setEnabled(true);
-            if (task.isSuccessful()) {
-                onLoginSuccess(auth.getCurrentUser());
-            } else {
-                String msg = task.getException() != null ? task.getException().getMessage() : "Unknown error";
-                Toast.makeText(this, "Login failed: " + msg, Toast.LENGTH_LONG).show();
-            }
-        });
-    }
+        // Save email locally for UI demonstration
+        PrefsHelper.saveEmail(this, email);
 
-    private void firebaseAuthWithGoogle(String idToken) {
-        AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
-        auth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
-            if (task.isSuccessful()) {
-                onLoginSuccess(auth.getCurrentUser());
-            } else {
-                Toast.makeText(this, "Google sign-in failed", Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    private void onLoginSuccess(FirebaseUser user) {
-        if (user != null) {
-            PrefsHelper.saveName(this, user.getDisplayName() == null ? "" : user.getDisplayName());
-            PrefsHelper.saveEmail(this, user.getEmail() == null ? "" : user.getEmail());
-        }
-        Intent i = new Intent(this, MainActivity.class);
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(i);
+        // Bypass authentication and proceed to dashboard
+        startActivity(new Intent(this, MainActivity.class));
     }
 }

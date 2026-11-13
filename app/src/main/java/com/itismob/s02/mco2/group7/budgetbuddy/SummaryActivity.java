@@ -1,3 +1,4 @@
+
 package com.itismob.s02.mco2.group7.budgetbuddy;
 
 import android.content.res.ColorStateList;
@@ -13,7 +14,6 @@ import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.itismob.s02.mco2.group7.budgetbuddy.models.Expense;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Categories;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.DonutChartView;
-import com.itismob.s02.mco2.group7.budgetbuddy.utils.FirestoreHelper;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Fmt;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Periods;
 
@@ -50,23 +50,25 @@ public class SummaryActivity extends AppCompatActivity {
         periodGroup.check(R.id.monthBtn);
         periodGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
-            if (checkedId == R.id.weekBtn) period = "Week";
-            else if (checkedId == R.id.yearBtn) period = "Year";
-            else period = "Month";
+
+            if (checkedId == R.id.weekBtn) {
+                period = "Week";
+            } else if (checkedId == R.id.yearBtn) {
+                period = "Year";
+            } else {
+                period = "Month";
+            }
+
             refresh();
         });
 
-        FirestoreHelper.col(FirestoreHelper.EXPENSES)
-                .addSnapshotListener(this, (snap, e) -> {
-                    if (snap == null) return;
-                    expenses.clear();
-                    expenses.addAll(snap.toObjects(Expense.class));
-                    refresh();
-                });
+        // UI-only mode: no Firestore expense listener.
+        refresh();
     }
 
     private void refresh() {
         long from, to;
+
         if (period.equals("Week")) {
             from = Periods.weekStart();
             to = from + 7 * DAY - 1;
@@ -74,6 +76,7 @@ public class SummaryActivity extends AppCompatActivity {
             Calendar c = Calendar.getInstance();
             c.set(Calendar.DAY_OF_YEAR, 1);
             from = Periods.startOfDay(c.getTimeInMillis());
+
             c.set(Calendar.MONTH, Calendar.DECEMBER);
             c.set(Calendar.DAY_OF_MONTH, 31);
             to = Periods.endOfDay(c.getTimeInMillis());
@@ -84,23 +87,30 @@ public class SummaryActivity extends AppCompatActivity {
 
         LinkedHashMap<String, Double> totals = new LinkedHashMap<>();
         double total = 0;
+
         for (Expense e : expenses) {
             if (e.getDate() < from || e.getDate() > to) continue;
+
             String cat = e.getCategory() == null ? "Other" : e.getCategory();
             Double old = totals.get(cat);
             totals.put(cat, (old == null ? 0 : old) + e.getAmount());
             total += e.getAmount();
         }
 
-        ArrayList<Map.Entry<String, Double>> rows = new ArrayList<>(totals.entrySet());
-        Collections.sort(rows, (a, b) -> Double.compare(b.getValue(), a.getValue()));
+        ArrayList<Map.Entry<String, Double>> rows =
+                new ArrayList<>(totals.entrySet());
+
+        Collections.sort(rows,
+                (a, b) -> Double.compare(b.getValue(), a.getValue()));
 
         float[] values = new float[rows.size()];
         int[] colors = new int[rows.size()];
+
         for (int i = 0; i < rows.size(); i++) {
             values[i] = rows.get(i).getValue().floatValue();
             colors[i] = Categories.color(rows.get(i).getKey());
         }
+
         donut.setData(values, colors);
         totalTv.setText(Fmt.peso(total));
 
@@ -108,18 +118,28 @@ public class SummaryActivity extends AppCompatActivity {
         emptyTv.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
 
         LayoutInflater inflater = LayoutInflater.from(this);
+
         for (int i = 0; i < rows.size(); i++) {
             String cat = rows.get(i).getKey();
             double amount = rows.get(i).getValue();
-            int pct = (int) Math.round(amount / total * 100);
+            int pct = total > 0
+                    ? (int) Math.round(amount / total * 100)
+                    : 0;
 
             View row = inflater.inflate(R.layout.item_legend, legendList, false);
+
             row.findViewById(R.id.dotView)
                     .setBackgroundTintList(ColorStateList.valueOf(colors[i]));
+
             ((TextView) row.findViewById(R.id.nameTv))
                     .setText(Categories.icon(cat) + "  " + cat);
-            ((TextView) row.findViewById(R.id.percentTv)).setText(pct + "%");
-            ((TextView) row.findViewById(R.id.amountTv)).setText(Fmt.peso(amount));
+
+            ((TextView) row.findViewById(R.id.percentTv))
+                    .setText(pct + "%");
+
+            ((TextView) row.findViewById(R.id.amountTv))
+                    .setText(Fmt.peso(amount));
+
             legendList.addView(row);
         }
     }

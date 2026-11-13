@@ -1,3 +1,4 @@
+
 package com.itismob.s02.mco2.group7.budgetbuddy;
 
 import android.app.DatePickerDialog;
@@ -13,11 +14,8 @@ import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.firestore.CollectionReference;
-import com.google.firebase.firestore.DocumentReference;
 import com.itismob.s02.mco2.group7.budgetbuddy.models.Budget;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Categories;
-import com.itismob.s02.mco2.group7.budgetbuddy.utils.FirestoreHelper;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Fmt;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Periods;
 
@@ -33,7 +31,7 @@ public class AddEditBudgetActivity extends AppCompatActivity {
     private TextInputEditText limitEt, startEt, endEt;
     private MaterialButton saveBtn, deleteBtn;
 
-    private Budget editing;          // null = creating a new budget
+    private Budget editing;
     private String period = "Monthly";
     private long startDate = Periods.monthStart();
     private long endDate;
@@ -58,6 +56,7 @@ public class AddEditBudgetActivity extends AppCompatActivity {
         categoryDd.setText(Categories.ALL[0], false);
 
         editing = (Budget) getIntent().getSerializableExtra(BUDGET_KEY);
+
         if (editing != null) {
             titleTv.setText(R.string.title_edit_budget);
             categoryDd.setText(editing.getCategory(), false);
@@ -73,10 +72,13 @@ public class AddEditBudgetActivity extends AppCompatActivity {
 
         periodGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
+
             period = periodForId(checkedId);
+
             if (editing == null) {
                 startDate = defaultStart(period);
             }
+
             endDate = computeEnd(period, startDate);
             refreshDates();
         });
@@ -101,19 +103,23 @@ public class AddEditBudgetActivity extends AppCompatActivity {
 
     private long defaultStart(String p) {
         if ("Weekly".equals(p)) return Periods.weekStart();
-        if ("Daily".equals(p)) return Periods.startOfDay(System.currentTimeMillis());
+        if ("Daily".equals(p)) {
+            return Periods.startOfDay(System.currentTimeMillis());
+        }
         return Periods.monthStart();
     }
 
     private long computeEnd(String p, long start) {
         Calendar c = Calendar.getInstance();
         c.setTimeInMillis(start);
+
         if ("Weekly".equals(p)) {
             c.add(Calendar.DAY_OF_MONTH, 6);
         } else if ("Monthly".equals(p)) {
             c.add(Calendar.MONTH, 1);
             c.add(Calendar.DAY_OF_MONTH, -1);
         }
+
         return Periods.endOfDay(c.getTimeInMillis());
     }
 
@@ -125,48 +131,55 @@ public class AddEditBudgetActivity extends AppCompatActivity {
     private void showStartPicker() {
         Calendar c = Calendar.getInstance();
         c.setTimeInMillis(startDate);
+
         new DatePickerDialog(this, (view, year, month, day) -> {
             Calendar picked = Calendar.getInstance();
             picked.set(year, month, day);
+
             startDate = Periods.startOfDay(picked.getTimeInMillis());
             endDate = computeEnd(period, startDate);
             refreshDates();
-        }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+
+        }, c.get(Calendar.YEAR), c.get(Calendar.MONTH),
+                c.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private String formatAmount(double a) {
-        return a == Math.floor(a) ? String.valueOf((long) a) : String.valueOf(a);
+        return a == Math.floor(a)
+                ? String.valueOf((long) a)
+                : String.valueOf(a);
     }
 
     private void save() {
         double limit;
+
         try {
             limit = Double.parseDouble(limitEt.getText().toString().trim());
         } catch (NumberFormatException e) {
             limitEt.setError("Enter a valid limit");
             return;
         }
+
         if (limit <= 0) {
             limitEt.setError("Limit must be more than 0");
             return;
         }
 
         String category = categoryDd.getText().toString().trim();
+
         if (category.isEmpty()) {
             Toast.makeText(this, "Choose a category", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        CollectionReference col = FirestoreHelper.col(FirestoreHelper.BUDGETS);
+        // UI-only mode: no Firestore record is created or updated.
+
         if (editing == null) {
-            DocumentReference ref = col.document();
-            ref.set(new Budget(ref.getId(), category, limit, period, startDate, endDate));
             Toast.makeText(this, "Budget created", Toast.LENGTH_SHORT).show();
         } else {
-            col.document(editing.getId())
-                    .set(new Budget(editing.getId(), category, limit, period, startDate, endDate));
             Toast.makeText(this, "Budget updated", Toast.LENGTH_SHORT).show();
         }
+
         finish();
     }
 
@@ -176,8 +189,7 @@ public class AddEditBudgetActivity extends AppCompatActivity {
                 .setMessage("This removes the budget limit. Your expenses are not deleted.")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Delete", (d, w) -> {
-                    FirestoreHelper.col(FirestoreHelper.BUDGETS)
-                            .document(editing.getId()).delete();
+                    // UI-only mode: deletion is simulated.
                     Toast.makeText(this, "Budget deleted", Toast.LENGTH_SHORT).show();
                     finish();
                 })

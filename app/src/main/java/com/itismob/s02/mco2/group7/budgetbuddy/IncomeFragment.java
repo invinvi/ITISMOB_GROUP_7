@@ -16,10 +16,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
-import com.google.firebase.firestore.ListenerRegistration;
 import com.itismob.s02.mco2.group7.budgetbuddy.adapters.IncomeAdapter;
 import com.itismob.s02.mco2.group7.budgetbuddy.models.Income;
-import com.itismob.s02.mco2.group7.budgetbuddy.utils.FirestoreHelper;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Fmt;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Periods;
 
@@ -33,12 +31,12 @@ public class IncomeFragment extends Fragment {
 
     private IncomeAdapter adapter;
     private TextView monthTotalTv, emptyTv;
-    private ListenerRegistration listener;
     private String filter = "All";
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_income, container, false);
     }
@@ -59,6 +57,7 @@ public class IncomeFragment extends Fragment {
 
         chipGroup.setOnCheckedStateChangeListener((group, checkedIds) -> {
             if (checkedIds.isEmpty()) return;
+
             Chip chip = group.findViewById(checkedIds.get(0));
             filter = chip.getText().toString();
             applyFilter();
@@ -67,39 +66,36 @@ public class IncomeFragment extends Fragment {
         addBtn.setOnClickListener(x ->
                 startActivity(new Intent(requireContext(), AddEditIncomeActivity.class)));
 
-        listener = FirestoreHelper.col(FirestoreHelper.INCOMES)
-                .addSnapshotListener((snap, e) -> {
-                    if (snap == null || getView() == null) return;
-                    all.clear();
-                    all.addAll(snap.toObjects(Income.class));
-                    // newest first
-                    Collections.sort(all, (a, b) -> Long.compare(b.getDate(), a.getDate()));
-                    applyFilter();
-                });
+        // UI-only mode: no Firestore data is loaded.
+        applyFilter();
     }
 
     private void applyFilter() {
         shown.clear();
+
         for (Income i : all) {
             if (filter.equals("All") || filter.equals(i.getSource())) {
                 shown.add(i);
             }
         }
+
+        Collections.sort(shown,
+                (a, b) -> Long.compare(b.getDate(), a.getDate()));
+
         adapter.notifyDataSetChanged();
+
         emptyTv.setVisibility(shown.isEmpty() ? View.VISIBLE : View.GONE);
 
         long start = Periods.monthStart();
         long end = Periods.monthEnd();
         double total = 0;
-        for (Income i : all) {
-            if (i.getDate() >= start && i.getDate() <= end) total += i.getAmount();
-        }
-        monthTotalTv.setText(Fmt.peso(total));
-    }
 
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        if (listener != null) listener.remove();
+        for (Income i : all) {
+            if (i.getDate() >= start && i.getDate() <= end) {
+                total += i.getAmount();
+            }
+        }
+
+        monthTotalTv.setText(Fmt.peso(total));
     }
 }

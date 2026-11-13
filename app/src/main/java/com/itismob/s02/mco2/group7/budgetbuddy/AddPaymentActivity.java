@@ -1,3 +1,4 @@
+
 package com.itismob.s02.mco2.group7.budgetbuddy;
 
 import android.app.DatePickerDialog;
@@ -12,10 +13,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.firebase.firestore.CollectionReference;
-import com.google.firebase.firestore.DocumentReference;
-import com.itismob.s02.mco2.group7.budgetbuddy.models.Payment;
-import com.itismob.s02.mco2.group7.budgetbuddy.utils.FirestoreHelper;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Fmt;
 
 import java.util.Calendar;
@@ -41,6 +38,7 @@ public class AddPaymentActivity extends AppCompatActivity {
         due.set(Calendar.MINUTE, 0);
         due.set(Calendar.SECOND, 0);
         due.set(Calendar.MILLISECOND, 0);
+
         refreshFields();
 
         findViewById(R.id.backTv).setOnClickListener(v -> finish());
@@ -59,7 +57,8 @@ public class AddPaymentActivity extends AppCompatActivity {
         new DatePickerDialog(this, (view, year, month, day) -> {
             due.set(year, month, day);
             refreshFields();
-        }, due.get(Calendar.YEAR), due.get(Calendar.MONTH), due.get(Calendar.DAY_OF_MONTH)).show();
+        }, due.get(Calendar.YEAR), due.get(Calendar.MONTH),
+                due.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void showTimePicker() {
@@ -67,23 +66,27 @@ public class AddPaymentActivity extends AppCompatActivity {
             due.set(Calendar.HOUR_OF_DAY, hour);
             due.set(Calendar.MINUTE, minute);
             refreshFields();
-        }, due.get(Calendar.HOUR_OF_DAY), due.get(Calendar.MINUTE), false).show();
+        }, due.get(Calendar.HOUR_OF_DAY),
+                due.get(Calendar.MINUTE), false).show();
     }
 
     private void save(boolean addToCalendar) {
         String name = nameEt.getText().toString().trim();
+
         if (TextUtils.isEmpty(name)) {
             nameEt.setError("Enter the payment name");
             return;
         }
 
         double amount;
+
         try {
             amount = Double.parseDouble(amountEt.getText().toString().trim());
         } catch (NumberFormatException e) {
             amountEt.setError("Enter a valid amount");
             return;
         }
+
         if (amount <= 0) {
             amountEt.setError("Amount must be more than 0");
             return;
@@ -91,15 +94,14 @@ public class AddPaymentActivity extends AppCompatActivity {
 
         long dueMillis = due.getTimeInMillis();
 
-        CollectionReference col = FirestoreHelper.col(FirestoreHelper.PAYMENTS);
-        DocumentReference ref = col.document();
-        ref.set(new Payment(ref.getId(), name, amount, dueMillis, addToCalendar));
+        // UI-only mode: payment is not saved to Firestore.
 
         if (addToCalendar) {
             openCalendar(name, amount, dueMillis);
         } else {
             Toast.makeText(this, "Payment saved", Toast.LENGTH_SHORT).show();
         }
+
         finish();
     }
 
@@ -110,11 +112,14 @@ public class AddPaymentActivity extends AppCompatActivity {
                 .putExtra(CalendarContract.Events.DESCRIPTION,
                         "BudgetBuddy reminder: " + Fmt.peso(amount))
                 .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, dueMillis)
-                .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, dueMillis + 30 * 60 * 1000L);
+                .putExtra(CalendarContract.EXTRA_EVENT_END_TIME,
+                        dueMillis + 30 * 60 * 1000L);
+
         try {
             startActivity(intent);
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "Payment saved, but no calendar app was found",
+            Toast.makeText(this,
+                    "Payment saved, but no calendar app was found",
                     Toast.LENGTH_LONG).show();
         }
     }

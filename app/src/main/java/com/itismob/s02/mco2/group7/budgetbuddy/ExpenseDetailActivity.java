@@ -1,3 +1,4 @@
+
 package com.itismob.s02.mco2.group7.budgetbuddy;
 
 import android.content.Intent;
@@ -11,7 +12,6 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.itismob.s02.mco2.group7.budgetbuddy.models.Expense;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Categories;
-import com.itismob.s02.mco2.group7.budgetbuddy.utils.FirestoreHelper;
 import com.itismob.s02.mco2.group7.budgetbuddy.utils.Fmt;
 
 public class ExpenseDetailActivity extends AppCompatActivity {
@@ -37,25 +37,13 @@ public class ExpenseDetailActivity extends AppCompatActivity {
         deleteBtn = findViewById(R.id.deleteBtn);
 
         current = (Expense) getIntent().getSerializableExtra(EXPENSE_KEY);
+
         if (current == null) {
             finish();
             return;
         }
-        show(current);
 
-        FirestoreHelper.col(FirestoreHelper.EXPENSES).document(current.getId())
-                .addSnapshotListener(this, (snap, e) -> {
-                    if (snap == null) return;
-                    if (snap.exists()) {
-                        Expense updated = snap.toObject(Expense.class);
-                        if (updated != null) {
-                            current = updated;
-                            show(current);
-                        }
-                    } else {
-                        finish();
-                    }
-                });
+        show(current);
 
         backTv.setOnClickListener(v -> finish());
 
@@ -73,6 +61,7 @@ public class ExpenseDetailActivity extends AppCompatActivity {
         amountTv.setText(Fmt.peso(e.getAmount()));
         dateTv.setText(Fmt.date(e.getDate()));
         categoryTv.setText(e.getCategory());
+
         String notes = e.getNotes();
         notesTv.setText(notes == null || notes.isEmpty() ? "No notes" : notes);
     }
@@ -83,8 +72,6 @@ public class ExpenseDetailActivity extends AppCompatActivity {
                 .setMessage("This will permanently remove this expense record.")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Delete", (d, w) -> {
-                    FirestoreHelper.col(FirestoreHelper.EXPENSES)
-                            .document(current.getId()).delete();
                     Toast.makeText(this, "Expense deleted", Toast.LENGTH_SHORT).show();
                     finish();
                 })
